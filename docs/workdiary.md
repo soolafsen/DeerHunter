@@ -166,3 +166,12 @@
   - fast wins
   - bigger bets
   - recommended next PRD candidates
+
+## 2026-03-29 04:50 Europe/Oslo
+
+- Simplified the deerstand hero illustration again after review.
+- Kept the same landscape, palette, and overall art style.
+- Reduced the stand itself to a cleaner silhouette with fewer overlapping structural members.
+- Removed the foreground deer entirely after deciding it added noise rather than clarity.
+- Added a few more trees to keep the scene balanced without introducing another fussy silhouette.
+- Simplified the stand once more toward a clearer box-on-stilts shape.
