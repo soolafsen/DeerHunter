@@ -150,3 +150,8 @@
   - supervisor
   - built-in dashboard
   - child and host control surface
+
+## 2026-03-29 04:31 Europe/Oslo
+
+- Adjusted the README hero illustration after review.
+- Removed the overlaid text card from the SVG and redrew the deerstand with a cleaner silhouette so the art reads better on the GitHub front page.
