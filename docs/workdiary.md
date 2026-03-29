@@ -175,3 +175,4 @@
 - Removed the foreground deer entirely after deciding it added noise rather than clarity.
 - Added a few more trees to keep the scene balanced without introducing another fussy silhouette.
 - Simplified the stand once more toward a clearer box-on-stilts shape.
+- Added a fresh hero asset filename and pointed the README at it so GitHub would stop serving the earlier cached-looking version.

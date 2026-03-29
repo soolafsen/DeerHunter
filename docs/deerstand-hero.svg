@@ -1,0 +1,48 @@
+<svg width="1200" height="520" viewBox="0 0 1200 520" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Deerstand at dawn</title>
+  <desc id="desc">A stylized deerstand on a hillside at dawn with pine trees in the foreground.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#112941"/>
+      <stop offset="56%" stop-color="#4A6A78"/>
+      <stop offset="100%" stop-color="#E7D7B7"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(818 168) rotate(90) scale(124 164)">
+      <stop offset="0%" stop-color="#F4C467" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#F4C467" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="520" fill="url(#sky)"/>
+  <ellipse cx="818" cy="166" rx="154" ry="114" fill="url(#sunGlow)"/>
+  <circle cx="810" cy="165" r="56" fill="#F4C467"/>
+
+  <path d="M0 396C124 366 236 356 356 378C469 399 574 434 676 432C790 430 885 379 985 368C1062 360 1128 376 1200 404V520H0V396Z" fill="#375243"/>
+  <path d="M0 430C139 408 248 405 362 424C487 445 585 484 715 482C829 480 930 442 1032 436C1091 432 1145 440 1200 456V520H0V430Z" fill="#23382C"/>
+
+  <g fill="#16241B">
+    <path d="M95 425L124 360L153 425H136L154 474H94L112 425H95Z"/>
+    <path d="M186 425L219 348L252 425H234L253 482H185L204 425H186Z"/>
+    <path d="M286 438L310 382L334 438H321L336 480H284L299 438H286Z"/>
+    <path d="M1043 430L1073 356L1103 430H1086L1104 480H1042L1060 430H1043Z"/>
+    <path d="M1088 446L1112 392L1136 446H1123L1138 492H1086L1101 446H1088Z"/>
+    <path d="M1118 438L1142 382L1166 438H1153L1168 480H1116L1131 438H1118Z"/>
+  </g>
+
+  <g stroke="#5A3B28" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="730" y1="228" x2="694" y2="424"/>
+    <line x1="844" y1="228" x2="880" y2="424"/>
+    <line x1="774" y1="228" x2="740" y2="424"/>
+    <line x1="810" y1="228" x2="822" y2="424"/>
+    <line x1="724" y1="304" x2="852" y2="304"/>
+    <line x1="736" y1="304" x2="792" y2="276"/>
+    <line x1="792" y1="276" x2="824" y2="356"/>
+  </g>
+
+  <g fill="#8A6240" stroke="#4B3222" stroke-width="6" stroke-linejoin="round">
+    <rect x="704" y="186" width="172" height="42" rx="7"/>
+    <rect x="722" y="142" width="98" height="50" rx="7"/>
+    <rect x="748" y="198" width="84" height="26" rx="5"/>
+    <rect x="786" y="198" width="12" height="50" rx="4"/>
+  </g>
+</svg>

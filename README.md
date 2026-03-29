@@ -1,6 +1,6 @@
 # DeerHunter
 
-![DeerHunter deerstand](./docs/deerstand.svg)
+![DeerHunter deerstand](./docs/deerstand-hero.svg)
 
 DeerHunter is a Windows-first `.NET` supervisor, dashboard, and local control plane for long-running child processes.
 
