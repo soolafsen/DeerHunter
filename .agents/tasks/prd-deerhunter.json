@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "project": "DeerHunter",
+  "overview": "Build a Windows-first C# .NET child-process supervisor as a new project, implemented as a .NET worker that can run as a console app or Windows service. It should start configured managed processes and agent processes, tail stdout/stderr plus optional external log files, detect configured signal patterns, apply simple reactions, expose a minimal local HTTP API, and prioritize long-run stability plus real-time and retrospective debugging over broad feature scope.",
+  "openQuestions": [
+    "Assume no database in the first version; keep state and recent event history in memory only.",
+    "Assume configuration is file-based JSON loaded at startup, with manual restart required after config changes in the first version.",
+    "Assume the local HTTP API binds to localhost only and does not include authentication in the first version.",
+    "Assume agent processes are supervised the same way as normal processes, with optional extra metadata but no separate orchestration protocol.",
+    "Assume signal matching uses plain substring and regex patterns with case-sensitivity configurable per rule.",
+    "Assume reactions are limited to kill, restart, priority up, priority down, start helper, stop helper, and internal state transition events."
+  ],
+  "qualityGates": [
+    "dotnet build",
+    "dotnet test",
+    "dotnet run -- --help"
+  ],
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Create runnable DeerHunter worker host",
+      "status": "done",
+      "dependsOn": [],
+      "description": "Set up a new .NET worker-based project that runs as a console app by default and is structured to support Windows service hosting, with minimal configuration loading and startup validation.",
+      "acceptanceCriteria": [
+        "A fresh clone can run `dotnet build` successfully for the DeerHunter solution or project.",
+        "Running the app in console mode with a valid minimal config starts the host and logs that the supervisor is idle with zero managed processes.",
+        "The host is wired for Windows service execution without requiring a separate codebase or duplicate startup path.",
+        "Negative case: starting with a missing or invalid config file exits with a clear validation error instead of starting partially."
+      ],
+      "startedAt": "2026-03-29T01:06:51.721Z",
+      "completedAt": "2026-03-29T01:12:17.829Z",
+      "updatedAt": "2026-03-29T01:12:17.829Z"
+    },
+    {
+      "id": "US-002",
+      "title": "Supervise configured child processes",
+      "status": "done",
+      "dependsOn": [
+        "US-001"
+      ],
+      "description": "Implement the core supervisor loop that starts configured processes, tracks lifecycle state, captures stdout and stderr streams, and supports manual stop and restart operations for each managed process definition.",
+      "acceptanceCriteria": [
+        "Given two configured sample commands, DeerHunter starts both and exposes their current lifecycle states in memory.",
+        "When a managed process exits unexpectedly, the supervisor records the exit and applies the configured restart behavior for that process.",
+        "Stdout and stderr lines from a child process are timestamped and attached to the correct process identity in the event stream.",
+        "Negative case: if a process executable path is invalid, DeerHunter records a failed start event for that process and continues supervising other configured processes."
+      ],
+      "startedAt": "2026-03-29T01:14:06.181Z",
+      "completedAt": "2026-03-29T01:21:06.863Z",
+      "updatedAt": "2026-03-29T01:21:06.863Z"
+    },
+    {
+      "id": "US-003",
+      "title": "Tail external log files and unify event ingestion",
+      "status": "done",
+      "dependsOn": [
+        "US-002"
+      ],
+      "description": "Add optional tailing of configured external log files and feed stdout, stderr, and tailed file lines through one normalized event pipeline so runtime behavior is easy to inspect and debug.",
+      "acceptanceCriteria": [
+        "A configured external log file is tailed from the chosen starting position and new appended lines appear in the same normalized event stream as stdout and stderr entries.",
+        "Each ingested line includes source metadata that distinguishes stdout, stderr, and specific external log files.",
+        "If a tailed file is rotated or recreated in a normal Windows workflow, DeerHunter resumes tailing the active file without duplicating large historical content.",
+        "Negative case: if an optional external log file does not exist at startup, DeerHunter records a warning and continues running without crashing."
+      ],
+      "startedAt": "2026-03-29T01:22:03.607Z",
+      "completedAt": "2026-03-29T01:29:53.761Z",
+      "updatedAt": "2026-03-29T01:29:53.761Z"
+    },
+    {
+      "id": "US-004",
+      "title": "Match signal patterns and execute reactions",
+      "status": "done",
+      "dependsOn": [
+        "US-003"
+      ],
+      "description": "Support configurable signal rules that match normalized log events and trigger simple reactions including kill, restart, priority changes, helper start or stop, and internal state transitions.",
+      "acceptanceCriteria": [
+        "A configured substring or regex rule can match an incoming event line and emit a recorded signal match event with the matched process, source, and rule identity.",
+        "On a configured restart reaction, DeerHunter stops and restarts the target process and records both the trigger reason and resulting lifecycle events.",
+        "On helper reactions, DeerHunter starts or stops the named helper process only when the referenced helper is defined in configuration.",
+        "Negative case: if a rule references an unknown target process or helper, DeerHunter records a rule execution failure and keeps the supervisor running."
+      ],
+      "startedAt": "2026-03-29T01:30:45.086Z",
+      "completedAt": "2026-03-29T01:35:30.343Z",
+      "updatedAt": "2026-03-29T01:35:30.343Z"
+    },
+    {
+      "id": "US-005",
+      "title": "Expose local monitoring and manual control API",
+      "status": "done",
+      "dependsOn": [
+        "US-002",
+        "US-004"
+      ],
+      "description": "Provide a minimal localhost-only HTTP API that returns current process states and recent events and allows manual actions such as start, stop, restart, and reaction-safe priority adjustments.",
+      "acceptanceCriteria": [
+        "A local HTTP request can retrieve the current list of managed processes with stable identifiers, configured names, and current runtime states.",
+        "A local HTTP request can retrieve a recent bounded event history containing process lifecycle, log ingestion, signal match, and reaction events.",
+        "A local HTTP request can trigger a manual restart for a configured process and the resulting action appears in the event history.",
+        "Negative case: requests for an unknown process identifier return a clear client error response instead of affecting other processes."
+      ],
+      "startedAt": "2026-03-29T01:41:30.100Z",
+      "completedAt": "2026-03-29T01:42:52.795Z",
+      "updatedAt": "2026-03-29T01:42:52.795Z"
+    },
+    {
+      "id": "US-006",
+      "title": "Harden for multi-day runs and debugging",
+      "status": "done",
+      "dependsOn": [
+        "US-005"
+      ],
+      "description": "Add bounded in-memory retention, structured diagnostic logging, clear state transitions, and focused automated tests so DeerHunter remains stable over long runs and easy to debug in real time and retrospect.",
+      "acceptanceCriteria": [
+        "Recent event retention is bounded by configuration or safe defaults so log-heavy workloads do not cause unbounded memory growth during long runs.",
+        "Structured supervisor logs make it possible to reconstruct process starts, exits, signal matches, reactions, and manual API actions after the fact.",
+        "Automated tests cover at least one restart path, one failed process start path, one signal reaction path, and one API not-found path.",
+        "Negative case: under repeated noisy log input, DeerHunter preserves service responsiveness and drops or trims only according to explicit bounded retention rules rather than failing unpredictably."
+      ],
+      "startedAt": "2026-03-29T01:43:05.768Z",
+      "completedAt": "2026-03-29T01:46:23.780Z",
+      "updatedAt": "2026-03-29T01:46:23.780Z"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "DeerHunter": {
+    "EventBufferSize": 1000,
+    "JournalPath": "state/events.jsonl",
+    "Api": {
+      "Urls": [
+        "http://127.0.0.1:5078"
+      ]
+    },
+    "Processes": []
+  }
+}

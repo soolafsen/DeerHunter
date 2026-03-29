@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DeerHunter.SampleProcess/DeerHunter.SampleProcess.csproj" />
+    <Project Path="src/DeerHunter/DeerHunter.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DeerHunter.Tests/DeerHunter.Tests.csproj" />
+  </Folder>
+</Solution>
