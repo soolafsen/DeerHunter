@@ -141,3 +141,12 @@
   - `dotnet build DeerHunter.slnx`
   - `dotnet test DeerHunter.slnx --no-build`
   - `dotnet run --project src/DeerHunter -- --help`
+
+## 2026-03-29 04:27 Europe/Oslo
+
+- Refreshed the GitHub front page after publish.
+- Added a repository-safe deerstand SVG illustration for the README hero.
+- Updated the README so the GitHub front page reflects the current product shape:
+  - supervisor
+  - built-in dashboard
+  - child and host control surface
