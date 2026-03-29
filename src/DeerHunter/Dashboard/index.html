@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DeerHunter Dashboard</title>
+  <link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Local dashboard</p>
+        <h1>DeerHunter</h1>
+        <p class="subtitle">Inspectable host, process, and event state from the built-in localhost listener.</p>
+      </div>
+      <div class="hero-status">
+        <span id="connection-status" class="badge">Loading</span>
+        <button id="refresh-button" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <section class="panel" aria-labelledby="host-summary-title">
+      <div class="panel-header">
+        <h2 id="host-summary-title">Host Summary</h2>
+        <p id="host-summary-meta" class="panel-meta">Waiting for local API</p>
+      </div>
+      <dl id="host-summary" class="stats-grid"></dl>
+    </section>
+
+    <section class="panel" aria-labelledby="actions-title">
+      <div class="panel-header">
+        <h2 id="actions-title">Actions</h2>
+        <p class="panel-meta">Host actions exposed by the local API</p>
+      </div>
+      <div id="actions-area" class="actions-grid"></div>
+      <p id="action-feedback" class="feedback" aria-live="polite"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="processes-title">
+      <div class="panel-header">
+        <h2 id="processes-title">Managed Processes &amp; Helpers</h2>
+        <p id="processes-meta" class="panel-meta">Loading snapshots</p>
+      </div>
+      <div id="processes-area" class="card-list"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="events-title">
+      <div class="panel-header">
+        <h2 id="events-title">Events</h2>
+        <p id="events-meta" class="panel-meta">Loading recent events</p>
+      </div>
+      <div id="events-area" class="event-list"></div>
+    </section>
+  </main>
+
+  <template id="stat-template">
+    <div class="stat-card">
+      <dt></dt>
+      <dd></dd>
+    </div>
+  </template>
+
+  <template id="process-template">
+    <article class="process-card">
+      <div class="process-card-header">
+        <div>
+          <h3 class="process-name"></h3>
+          <p class="process-description"></p>
+        </div>
+        <div class="process-badges">
+          <span class="process-role badge"></span>
+          <span class="process-lifecycle badge"></span>
+        </div>
+      </div>
+      <p class="process-summary"></p>
+      <div class="process-actions"></div>
+      <p class="process-feedback feedback" aria-live="polite"></p>
+      <dl class="process-details"></dl>
+    </article>
+  </template>
+
+  <template id="event-template">
+    <article class="event-item">
+      <div class="event-heading">
+        <strong class="event-type"></strong>
+        <span class="event-time"></span>
+      </div>
+      <p class="event-message"></p>
+      <p class="event-meta"></p>
+    </article>
+  </template>
+
+  <script type="module" src="/dashboard.js"></script>
+</body>
+</html>

@@ -79,8 +79,65 @@
 - PRD status is now fully complete with all stories marked `done`.
 - Repo is ready for commit and GitHub publication as `DeerHunter`.
 
+## 2026-03-29 03:50 Europe/Oslo
+
+- User clarified that the intended operator surface is a built-in dashboard, not just a raw monitoring API.
+- Generated a second Ralph PRD for the dashboard/control-plane extension:
+  - `.agents/tasks/prd-deerhunter-dashboard.json`
+  - `.agents/tasks/prd-deerhunter-dashboard.overview.md`
+- New scope explicitly includes:
+  - dashboard view of DeerHunter host state
+  - dashboard view of child and helper states
+  - dashboard event feed
+  - dashboard-triggered process actions
+  - dashboard-triggered DeerHunter self-actions such as pause, resume, reload config, and clean shutdown
+
 ## Current Next Step
 
-- Finish the real supervision features from `US-002` onward.
-- Keep using Ralph as part of the implementation loop, not only for planning.
-- Publish to a new GitHub repo named `DeerHunter` once build and tests are clean.
+- Execute the dashboard PRD with Ralph iterations.
+- Keep the architecture simple: plain static dashboard assets, existing local API host, no heavyweight frontend framework.
+
+## 2026-03-29 03:55 Europe/Oslo
+
+- Ran the first Ralph build iteration for the dashboard PRD.
+- Ralph completed dashboard `US-001`.
+- New host-control surface now exists for:
+  - host status
+  - pause supervision
+  - resume supervision
+  - reload configuration
+  - clean shutdown request
+- Verified build and tests still pass after host self-control was added.
+
+## 2026-03-29 04:01 Europe/Oslo
+
+- Ran the second Ralph build iteration for the dashboard PRD.
+- Ralph completed dashboard `US-002`.
+- DeerHunter now serves a built-in dashboard directly from the existing localhost listener at `/`.
+- The dashboard is plain HTML, CSS, and JavaScript shipped with the worker output, which preserves the simple inspectable architecture.
+
+## 2026-03-29 04:11 Europe/Oslo
+
+- Ran the next two Ralph build iterations for the dashboard PRD.
+- Ralph completed:
+  - dashboard `US-003` live host/process state
+  - dashboard `US-004` recent event feed
+- At this point the dashboard is no longer just a shell; it shows DeerHunter host state, managed process/helper state, and recent event history.
+- Remaining dashboard work is the control wiring and final hardening.
+
+## 2026-03-29 04:22 Europe/Oslo
+
+- Ran the final two Ralph build iterations for the dashboard PRD.
+- Ralph completed:
+  - dashboard `US-005` operational controls
+  - dashboard `US-006` hardening and flow verification
+- Final result:
+  - dashboard can inspect DeerHunter host state
+  - dashboard can inspect child and helper state
+  - dashboard can inspect recent events
+  - dashboard can issue process actions
+  - dashboard can issue DeerHunter host actions including pause, resume, reload, and clean shutdown request
+- Final local verification passed:
+  - `dotnet build DeerHunter.slnx`
+  - `dotnet test DeerHunter.slnx --no-build`
+  - `dotnet run --project src/DeerHunter -- --help`

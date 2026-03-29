@@ -129,6 +129,60 @@ public sealed class LocalApiServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PriorityAction_UpdatesSnapshot_AndInvalidPriorityReturnsClientError()
+    {
+        using var client = await CreateClientAsync(
+        [
+            new ManagedProcessOptions
+            {
+                Name = "manual",
+                Description = "Manual process",
+                Command = SampleProcessPath,
+                Arguments = ["--stdout", "ready", "--wait"],
+                Restart = new RestartPolicyOptions
+                {
+                    Enabled = false
+                }
+            }
+        ]);
+
+        var priorityResponse = await client.PostAsJsonAsync("/api/processes/manual/priority", new
+        {
+            priority = "High"
+        });
+        priorityResponse.EnsureSuccessStatusCode();
+
+        var events = await WaitForEventsAsync(
+            client,
+            events => events.Any(static item => item.GetProperty("eventType").GetString() == "process.priority.changed" &&
+                                                item.GetProperty("processName").GetString() == "manual" &&
+                                                item.GetProperty("details").GetProperty("priority").GetString() == "High" &&
+                                                item.GetProperty("details").GetProperty("reason").GetString() == "manual api priority"));
+
+        Assert.Contains(
+            events,
+            static item => item.GetProperty("eventType").GetString() == "process.priority.changed" &&
+                           item.GetProperty("details").GetProperty("priority").GetString() == "High" &&
+                           item.GetProperty("details").GetProperty("reason").GetString() == "manual api priority");
+
+        var processesResponse = await client.GetAsync("/api/processes");
+        processesResponse.EnsureSuccessStatusCode();
+        var processes = await processesResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var process = Assert.Single(processes.EnumerateArray());
+        Assert.Equal("High", process.GetProperty("snapshot").GetProperty("priority").GetString());
+
+        var invalidPriorityResponse = await client.PostAsJsonAsync("/api/processes/manual/priority", new
+        {
+            priority = "Turbo"
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, invalidPriorityResponse.StatusCode);
+
+        var invalidPriorityError = await invalidPriorityResponse.Content.ReadFromJsonAsync<ApiError>(JsonOptions);
+        Assert.NotNull(invalidPriorityError);
+        Assert.Equal("invalid_priority", invalidPriorityError.Code);
+    }
+
+    [Fact]
     public async Task NoisyEventInput_RemainsResponsive_AndTrimsAccordingToRetentionRules()
     {
         const int capacity = 25;
@@ -155,6 +209,185 @@ public sealed class LocalApiServiceTests : IAsyncLifetime
         processesResponse.EnsureSuccessStatusCode();
         var processes = await processesResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         Assert.Empty(processes.EnumerateArray());
+    }
+
+    [Fact]
+    public async Task HostStatusAndActions_ReportHostState_AndPausePersistsUntilResume()
+    {
+        var fixture = await CreateApiFixtureAsync(
+        [
+            new ManagedProcessOptions
+            {
+                Name = "main",
+                Command = SampleProcessPath,
+                Arguments = ["--stdout", "ready", "--wait"],
+                Restart = new RestartPolicyOptions
+                {
+                    Enabled = false
+                }
+            },
+            new ManagedProcessOptions
+            {
+                Name = "helper",
+                Command = SampleProcessPath,
+                Arguments = ["--stdout", "helper-ready", "--wait"],
+                AutoStart = false,
+                IsHelper = true,
+                Restart = new RestartPolicyOptions
+                {
+                    Enabled = false
+                }
+            }
+        ], eventBufferSize: 200);
+
+        using var client = fixture.Client;
+
+        var initialStatusResponse = await client.GetAsync("/api/host/status");
+        initialStatusResponse.EnsureSuccessStatusCode();
+        var initialStatus = await initialStatusResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+
+        Assert.Equal("Running", initialStatus.GetProperty("supervisionState").GetString());
+        Assert.False(initialStatus.GetProperty("supervisionPaused").GetBoolean());
+        Assert.Equal(fixture.ConfigPath, initialStatus.GetProperty("configPath").GetString());
+        Assert.Equal(1, initialStatus.GetProperty("managedProcessCount").GetInt32());
+        Assert.Equal(1, initialStatus.GetProperty("helperCount").GetInt32());
+
+        var pauseResponse = await client.PostAsync("/api/host/actions/pause", content: null);
+        pauseResponse.EnsureSuccessStatusCode();
+
+        var pausedStatusResponse = await client.GetAsync("/api/host/status");
+        pausedStatusResponse.EnsureSuccessStatusCode();
+        var pausedStatus = await pausedStatusResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+
+        Assert.Equal("Paused", pausedStatus.GetProperty("supervisionState").GetString());
+        Assert.True(pausedStatus.GetProperty("supervisionPaused").GetBoolean());
+
+        var pauseEvent = await WaitForEventsAsync(
+            client,
+            events => events.Any(static item => item.GetProperty("eventType").GetString() == "host.supervision.paused" &&
+                                                item.GetProperty("source").GetString() == "host.api" &&
+                                                item.GetProperty("details").GetProperty("reason").GetString() == "manual api pause supervision"));
+
+        Assert.Contains(
+            pauseEvent,
+            static item => item.GetProperty("eventType").GetString() == "host.supervision.paused" &&
+                           item.GetProperty("details").GetProperty("reason").GetString() == "manual api pause supervision");
+
+        var resumeResponse = await client.PostAsync("/api/host/actions/resume", content: null);
+        resumeResponse.EnsureSuccessStatusCode();
+
+        var resumedStatusResponse = await client.GetAsync("/api/host/status");
+        resumedStatusResponse.EnsureSuccessStatusCode();
+        var resumedStatus = await resumedStatusResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+
+        Assert.Equal("Running", resumedStatus.GetProperty("supervisionState").GetString());
+        Assert.False(resumedStatus.GetProperty("supervisionPaused").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HostActions_ReturnStructuredErrors_ForUnknownActionsAndWrongMethods()
+    {
+        var fixture = await CreateApiFixtureAsync([], eventBufferSize: 200);
+        using var client = fixture.Client;
+
+        var baselineStatusResponse = await client.GetAsync("/api/host/status");
+        baselineStatusResponse.EnsureSuccessStatusCode();
+        var baselineStatus = await baselineStatusResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+
+        var wrongMethodResponse = await client.GetAsync("/api/host/actions/pause");
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, wrongMethodResponse.StatusCode);
+        var wrongMethodError = await wrongMethodResponse.Content.ReadFromJsonAsync<ApiError>(JsonOptions);
+        Assert.NotNull(wrongMethodError);
+        Assert.Equal("method_not_allowed", wrongMethodError.Code);
+
+        var unknownActionResponse = await client.PostAsync("/api/host/actions/unknown", content: null);
+        Assert.Equal(HttpStatusCode.BadRequest, unknownActionResponse.StatusCode);
+        var unknownActionError = await unknownActionResponse.Content.ReadFromJsonAsync<ApiError>(JsonOptions);
+        Assert.NotNull(unknownActionError);
+        Assert.Equal("unknown_host_action", unknownActionError.Code);
+
+        var afterStatusResponse = await client.GetAsync("/api/host/status");
+        afterStatusResponse.EnsureSuccessStatusCode();
+        var afterStatus = await afterStatusResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+
+        Assert.Equal(baselineStatus.GetProperty("supervisionState").GetString(), afterStatus.GetProperty("supervisionState").GetString());
+        Assert.Equal(baselineStatus.GetProperty("supervisionPaused").GetBoolean(), afterStatus.GetProperty("supervisionPaused").GetBoolean());
+    }
+
+    [Fact]
+    public async Task DashboardRootAndAssets_AreServed_FromLocalhostListener_AndMissingAssetsReturn404()
+    {
+        var fixture = await CreateApiFixtureAsync(
+        [
+            new ManagedProcessOptions
+            {
+                Name = "main",
+                Description = "Main worker",
+                Command = SampleProcessPath,
+                Arguments = ["--stdout", "ready", "--wait"],
+                Restart = new RestartPolicyOptions
+                {
+                    Enabled = false
+                }
+            }
+        ], eventBufferSize: 200);
+
+        using var client = fixture.Client;
+
+        var rootResponse = await client.GetAsync("/");
+        rootResponse.EnsureSuccessStatusCode();
+        Assert.Equal("text/html; charset=utf-8", rootResponse.Content.Headers.ContentType?.ToString());
+        var html = await rootResponse.Content.ReadAsStringAsync();
+        Assert.Contains("Host Summary", html, StringComparison.Ordinal);
+        Assert.Contains("Processes", html, StringComparison.Ordinal);
+        Assert.Contains("Events", html, StringComparison.Ordinal);
+        Assert.Contains("Actions", html, StringComparison.Ordinal);
+
+        var scriptResponse = await client.GetAsync("/dashboard.js");
+        scriptResponse.EnsureSuccessStatusCode();
+        Assert.Equal("application/javascript; charset=utf-8", scriptResponse.Content.Headers.ContentType?.ToString());
+        var script = await scriptResponse.Content.ReadAsStringAsync();
+        Assert.Contains("loadDashboard", script, StringComparison.Ordinal);
+        Assert.Contains("timestampUtc", script, StringComparison.Ordinal);
+        Assert.Contains("/api/events?take=", script, StringComparison.Ordinal);
+        Assert.Contains("Recent events could not be loaded. Try refresh again.", script, StringComparison.Ordinal);
+
+        var missingAssetResponse = await client.GetAsync("/missing-dashboard-asset.js");
+        Assert.Equal(HttpStatusCode.NotFound, missingAssetResponse.StatusCode);
+        Assert.Equal("text/plain; charset=utf-8", missingAssetResponse.Content.Headers.ContentType?.ToString());
+        var missingMessage = await missingAssetResponse.Content.ReadAsStringAsync();
+        Assert.Contains("Dashboard asset '/missing-dashboard-asset.js' was not found.", missingMessage, StringComparison.Ordinal);
+
+        var statusResponse = await client.GetAsync("/api/host/status");
+        statusResponse.EnsureSuccessStatusCode();
+        Assert.Equal("application/json; charset=utf-8", statusResponse.Content.Headers.ContentType?.ToString());
+    }
+
+    [Fact]
+    public async Task ReloadAndShutdownHostActions_ReturnSuccess_AndRecordAcceptedEvents()
+    {
+        var fixture = await CreateApiFixtureAsync([], eventBufferSize: 200);
+        using var client = fixture.Client;
+
+        var reloadResponse = await client.PostAsync("/api/host/actions/reload", content: null);
+        reloadResponse.EnsureSuccessStatusCode();
+
+        var shutdownResponse = await client.PostAsync("/api/host/actions/shutdown", content: null);
+        shutdownResponse.EnsureSuccessStatusCode();
+
+        var events = await WaitForEventsAsync(
+            client,
+            events => events.Any(static item => item.GetProperty("eventType").GetString() == "host.configuration.reload.requested") &&
+                      events.Any(static item => item.GetProperty("eventType").GetString() == "host.shutdown.requested"));
+
+        Assert.Contains(
+            events,
+            static item => item.GetProperty("eventType").GetString() == "host.configuration.reload.requested" &&
+                           item.GetProperty("details").GetProperty("reason").GetString() == "manual api reload configuration");
+        Assert.Contains(
+            events,
+            static item => item.GetProperty("eventType").GetString() == "host.shutdown.requested" &&
+                           item.GetProperty("details").GetProperty("reason").GetString() == "manual api clean shutdown");
     }
 
     public async Task InitializeAsync()
@@ -190,6 +423,8 @@ public sealed class LocalApiServiceTests : IAsyncLifetime
     {
         var port = GetAvailablePort();
         var apiUrl = $"http://127.0.0.1:{port}/";
+        var configPath = Path.Combine(Path.GetTempPath(), $"deerhunter-config-{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(configPath, "{ }");
         var options = Options.Create(new DeerHunterOptions
         {
             EventBufferSize = eventBufferSize,
@@ -202,6 +437,8 @@ public sealed class LocalApiServiceTests : IAsyncLifetime
         });
 
         var environment = new TestHostEnvironment(_workspaceRoot);
+        var hostRuntimeState = new HostRuntimeState(configPath);
+        var applicationLifetime = new TestApplicationLifetime();
         var eventStore = new EventStore(options);
         var eventJournal = new EventJournal(options, environment, NullLogger<EventJournal>.Instance);
         var coordinator = new SupervisorCoordinator(
@@ -209,6 +446,8 @@ public sealed class LocalApiServiceTests : IAsyncLifetime
             eventStore,
             eventJournal,
             environment,
+            hostRuntimeState,
+            applicationLifetime,
             NullLoggerFactory.Instance,
             NullLogger<SupervisorCoordinator>.Instance);
         var apiService = new LocalApiService(options, coordinator, NullLogger<LocalApiService>.Instance);
@@ -230,7 +469,7 @@ public sealed class LocalApiServiceTests : IAsyncLifetime
             return response.IsSuccessStatusCode ? client : null;
         });
 
-        return new ApiFixture(client, coordinator);
+        return new ApiFixture(client, coordinator, configPath);
     }
 
     private static int GetAvailablePort()
@@ -272,7 +511,20 @@ public sealed class LocalApiServiceTests : IAsyncLifetime
 
     private sealed record ApiError(string Code, string Message);
 
-    private sealed record ApiFixture(HttpClient Client, SupervisorCoordinator Coordinator);
+    private sealed record ApiFixture(HttpClient Client, SupervisorCoordinator Coordinator, string ConfigPath);
+
+    private sealed class TestApplicationLifetime : IHostApplicationLifetime
+    {
+        public CancellationToken ApplicationStarted => CancellationToken.None;
+
+        public CancellationToken ApplicationStopping => CancellationToken.None;
+
+        public CancellationToken ApplicationStopped => CancellationToken.None;
+
+        public void StopApplication()
+        {
+        }
+    }
 
     private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
     {

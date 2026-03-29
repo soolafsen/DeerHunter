@@ -9,6 +9,8 @@ public sealed class SupervisorCoordinator : IHostedService
     private readonly EventStore _eventStore;
     private readonly EventJournal _eventJournal;
     private readonly IHostEnvironment _environment;
+    private readonly HostRuntimeState _hostRuntimeState;
+    private readonly IHostApplicationLifetime _applicationLifetime;
     private readonly ILogger<SupervisorCoordinator> _logger;
     private readonly Dictionary<string, ManagedProcessAgent> _agents = new(StringComparer.OrdinalIgnoreCase);
 
@@ -17,12 +19,16 @@ public sealed class SupervisorCoordinator : IHostedService
         EventStore eventStore,
         EventJournal eventJournal,
         IHostEnvironment environment,
+        HostRuntimeState hostRuntimeState,
+        IHostApplicationLifetime applicationLifetime,
         ILoggerFactory loggerFactory,
         ILogger<SupervisorCoordinator> logger)
     {
         _eventStore = eventStore;
         _eventJournal = eventJournal;
         _environment = environment;
+        _hostRuntimeState = hostRuntimeState;
+        _applicationLifetime = applicationLifetime;
         _logger = logger;
 
         foreach (var process in options.Value.Processes)
@@ -63,6 +69,103 @@ public sealed class SupervisorCoordinator : IHostedService
 
     public IReadOnlyList<SupervisorEvent> GetRecentEvents(int take) => _eventStore.GetRecent(take);
 
+    public bool IsSupervisionPaused => _hostRuntimeState.IsSupervisionPaused;
+
+    public HostStatusSnapshot GetHostStatus()
+    {
+        var managedProcessCount = 0;
+        var helperCount = 0;
+
+        foreach (var agent in _agents.Values)
+        {
+            if (agent.Options.IsHelper)
+            {
+                helperCount++;
+            }
+            else
+            {
+                managedProcessCount++;
+            }
+        }
+
+        return new HostStatusSnapshot(
+            SupervisionState: _hostRuntimeState.IsSupervisionPaused ? "Paused" : "Running",
+            SupervisionPaused: _hostRuntimeState.IsSupervisionPaused,
+            ConfigPath: _hostRuntimeState.ConfigPath,
+            StartedAtUtc: _hostRuntimeState.StartedAtUtc,
+            UptimeSeconds: Math.Max(0, (long)(DateTimeOffset.UtcNow - _hostRuntimeState.StartedAtUtc).TotalSeconds),
+            ManagedProcessCount: managedProcessCount,
+            HelperCount: helperCount,
+            BufferedEventCount: _eventStore.GetBufferedEventCount());
+    }
+
+    public HostStatusSnapshot PauseSupervision(string source, string reason)
+    {
+        _hostRuntimeState.PauseSupervision();
+        RecordEvent(
+            "host.supervision.paused",
+            processName: null,
+            source,
+            "Host supervision paused.",
+            new Dictionary<string, string?>
+            {
+                ["reason"] = reason,
+                ["supervisionState"] = "Paused"
+            });
+
+        return GetHostStatus();
+    }
+
+    public HostStatusSnapshot ResumeSupervision(string source, string reason)
+    {
+        _hostRuntimeState.ResumeSupervision();
+        RecordEvent(
+            "host.supervision.resumed",
+            processName: null,
+            source,
+            "Host supervision resumed.",
+            new Dictionary<string, string?>
+            {
+                ["reason"] = reason,
+                ["supervisionState"] = "Running"
+            });
+
+        return GetHostStatus();
+    }
+
+    public HostStatusSnapshot ReloadConfiguration(string source, string reason)
+    {
+        RecordEvent(
+            "host.configuration.reload.requested",
+            processName: null,
+            source,
+            "Host configuration reload requested.",
+            new Dictionary<string, string?>
+            {
+                ["reason"] = reason,
+                ["configPath"] = _hostRuntimeState.ConfigPath
+            });
+
+        return GetHostStatus();
+    }
+
+    public HostStatusSnapshot RequestCleanShutdown(string source, string reason)
+    {
+        _hostRuntimeState.MarkShutdownRequested();
+        RecordEvent(
+            "host.shutdown.requested",
+            processName: null,
+            source,
+            "Host clean shutdown requested.",
+            new Dictionary<string, string?>
+            {
+                ["reason"] = reason
+            });
+
+        _ = Task.Run(_applicationLifetime.StopApplication);
+        return GetHostStatus();
+    }
+
     public Task<ManagedProcessSnapshot?> StartProcessAsync(string name, string reason, CancellationToken cancellationToken)
         => WithAgentAsync(name, agent => agent.StartAsync(reason, cancellationToken));
 
@@ -77,6 +180,21 @@ public sealed class SupervisorCoordinator : IHostedService
 
     public async Task ExecuteRuleActionsAsync(string sourceProcessName, SignalRuleOptions rule, CancellationToken cancellationToken)
     {
+        if (_hostRuntimeState.IsSupervisionPaused)
+        {
+            RecordEvent(
+                "rule.action.skipped",
+                sourceProcessName,
+                "supervisor",
+                $"Rule {rule.Id} skipped while supervision is paused.",
+                new Dictionary<string, string?>
+                {
+                    ["ruleId"] = rule.Id,
+                    ["reason"] = "supervision paused"
+                });
+            return;
+        }
+
         foreach (var action in rule.Actions)
         {
             try
@@ -160,6 +278,8 @@ public sealed class SupervisorCoordinator : IHostedService
     }
 
     internal string ResolvePath(string path) => Path.GetFullPath(path, _environment.ContentRootPath);
+
+    internal bool ShouldSuppressAutomaticRestart() => _hostRuntimeState.IsSupervisionPaused;
 
     private async Task<ManagedProcessSnapshot?> AdjustPriorityAsync(string processName, bool raise, string ruleId, CancellationToken cancellationToken)
     {

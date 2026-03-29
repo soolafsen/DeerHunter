@@ -81,4 +81,12 @@ public sealed class EventStore
             return _events.Reverse().Take(take).Reverse().ToArray();
         }
     }
+
+    public int GetBufferedEventCount()
+    {
+        lock (_gate)
+        {
+            return _events.Count;
+        }
+    }
 }

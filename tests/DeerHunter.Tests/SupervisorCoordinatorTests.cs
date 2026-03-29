@@ -430,6 +430,92 @@ public sealed class SupervisorCoordinatorTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PausedSupervision_SkipsRuleActions_AndAutomaticRestart()
+    {
+        var coordinator = CreateCoordinator(
+        [
+            new ManagedProcessOptions
+            {
+                Name = "speaker",
+                Command = SampleProcessPath,
+                Arguments = ["--stdout", "restart-me", "--wait"],
+                Restart = new RestartPolicyOptions
+                {
+                    Enabled = false
+                },
+                Rules =
+                [
+                    new SignalRuleOptions
+                    {
+                        Id = "restart-rule",
+                        Pattern = "restart-me",
+                        Source = LogSourceType.Stdout,
+                        Actions =
+                        [
+                            new RuleActionOptions
+                            {
+                                Type = RuleActionType.Restart
+                            }
+                        ]
+                    }
+                ]
+            },
+            new ManagedProcessOptions
+            {
+                Name = "flaky",
+                Command = SampleProcessPath,
+                Arguments = ["--stdout", "exit-now", "--delay-ms", "50", "--exit-code", "5"],
+                Restart = new RestartPolicyOptions
+                {
+                    Enabled = true,
+                    DelaySeconds = 0,
+                    MaxAttempts = 1
+                }
+            }
+        ]);
+
+        coordinator.PauseSupervision("test", "pause before runtime checks");
+        await coordinator.StartAsync(CancellationToken.None);
+
+        var skippedRuleAction = await WaitForAsync(
+            () => coordinator.GetRecentEvents(30)
+                .FirstOrDefault(static @event => @event.EventType == "rule.action.skipped" && @event.ProcessName == "speaker"));
+
+        var skippedRestart = await WaitForAsync(
+            () => coordinator.GetRecentEvents(30)
+                .FirstOrDefault(static @event => @event.EventType == "process.restart.skipped" && @event.ProcessName == "flaky"));
+
+        var flakySnapshot = await WaitForAsync(
+            () =>
+            {
+                var current = coordinator.GetSnapshot("flaky");
+                return current is { Lifecycle: ManagedProcessLifecycle.Stopped, LastExitCode: 5 } ? current : null;
+            });
+
+        var speakerSnapshot = await WaitForAsync(
+            () =>
+            {
+                var current = coordinator.GetSnapshot("speaker");
+                return current is { Lifecycle: ManagedProcessLifecycle.Running } ? current : null;
+            });
+
+        await Task.Delay(250);
+
+        Assert.Equal("restart-rule", skippedRuleAction.Details["ruleId"]);
+        Assert.Equal("supervision paused", skippedRuleAction.Details["reason"]);
+        Assert.Equal("supervision paused", skippedRestart.Details["reason"]);
+        Assert.Equal(ManagedProcessLifecycle.Stopped, flakySnapshot.Lifecycle);
+        Assert.Equal(5, flakySnapshot.LastExitCode);
+        Assert.Equal(ManagedProcessLifecycle.Running, speakerSnapshot.Lifecycle);
+        Assert.DoesNotContain(
+            coordinator.GetRecentEvents(40),
+            static @event => @event.EventType == "process.restarting" && @event.ProcessName == "speaker");
+        Assert.DoesNotContain(
+            coordinator.GetRecentEvents(40),
+            static @event => @event.EventType == "process.restart.scheduled" && @event.ProcessName == "flaky");
+    }
+
+    [Fact]
     public async Task HelperRules_StartAndStopDefinedHelperOnly()
     {
         var tempDirectory = CreateTempDirectory();
@@ -634,6 +720,7 @@ public sealed class SupervisorCoordinatorTests : IAsyncLifetime
         });
 
         var environment = new TestHostEnvironment(_workspaceRoot);
+        var hostRuntimeState = new HostRuntimeState(Path.Combine(Path.GetTempPath(), $"deerhunter-config-{Guid.NewGuid():N}.json"));
         var eventStore = new EventStore(options);
         var eventJournal = new EventJournal(options, environment, NullLogger<EventJournal>.Instance);
         var coordinator = new SupervisorCoordinator(
@@ -641,6 +728,8 @@ public sealed class SupervisorCoordinatorTests : IAsyncLifetime
             eventStore,
             eventJournal,
             environment,
+            hostRuntimeState,
+            new TestApplicationLifetime(),
             NullLoggerFactory.Instance,
             NullLogger<SupervisorCoordinator>.Instance);
 
@@ -700,5 +789,18 @@ public sealed class SupervisorCoordinatorTests : IAsyncLifetime
         public string ContentRootPath { get; set; } = contentRootPath;
 
         public IFileProvider ContentRootFileProvider { get; set; } = new PhysicalFileProvider(contentRootPath);
+    }
+
+    private sealed class TestApplicationLifetime : IHostApplicationLifetime
+    {
+        public CancellationToken ApplicationStarted => CancellationToken.None;
+
+        public CancellationToken ApplicationStopping => CancellationToken.None;
+
+        public CancellationToken ApplicationStopped => CancellationToken.None;
+
+        public void StopApplication()
+        {
+        }
     }
 }

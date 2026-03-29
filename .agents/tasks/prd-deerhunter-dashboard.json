@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "project": "DeerHunter Local Dashboard",
+  "overview": "Extend the existing DeerHunter .NET worker with a built-in localhost dashboard and matching local API updates so operators can inspect host and child-process state, review recent events, and perform all supported operational actions without adding a database or heavyweight frontend framework.",
+  "openQuestions": [
+    "Assume the dashboard is served directly by the existing local API host as static HTML, CSS, and JavaScript instead of introducing Razor pages, Blazor, or a SPA framework.",
+    "Assume reload configuration means re-reading the configured JSON file and applying changes that are safe at runtime, while rejecting invalid reloads with a visible error event instead of crashing the host.",
+    "Assume pause supervision suspends automatic restart and rule-driven supervision actions while still allowing explicit operator actions and state inspection.",
+    "Assume DeerHunter self-actions are exposed as explicit host actions only and never as implicit process-like commands."
+  ],
+  "qualityGates": [
+    "dotnet build DeerHunter.slnx",
+    "dotnet test DeerHunter.slnx --no-build",
+    "dotnet run --project src/DeerHunter -- --help"
+  ],
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Add host state and host action API",
+      "status": "done",
+      "dependsOn": [],
+      "description": "Extend the existing local API shape with host-level status and explicit host action endpoints so DeerHunter can report and control its own supervision lifecycle in the same inspectable surface as managed processes.",
+      "acceptanceCriteria": [
+        "The local API exposes a host status endpoint that returns DeerHunter supervision state, config path, uptime or start time, and summary counts for managed processes, helpers, and buffered events.",
+        "The local API exposes explicit host action endpoints for pause supervision, resume supervision, reload configuration, and request clean shutdown, and each accepted action records a supervisor event with a clear source and reason.",
+        "Example: posting the pause supervision action returns success and a follow-up host status read shows supervision paused until resume is requested.",
+        "Negative case: posting an unknown host action or using the wrong HTTP method returns a non-200 error payload without changing DeerHunter state."
+      ],
+      "startedAt": "2026-03-29T01:50:57.299Z",
+      "completedAt": "2026-03-29T01:55:46.755Z",
+      "updatedAt": "2026-03-29T01:55:46.755Z"
+    },
+    {
+      "id": "US-002",
+      "title": "Serve a built-in localhost dashboard",
+      "status": "done",
+      "dependsOn": [
+        "US-001"
+      ],
+      "description": "Serve a simple inspectable dashboard from the existing localhost listener using built-in static assets and no heavyweight frontend framework.",
+      "acceptanceCriteria": [
+        "Browsing the configured localhost API base URL returns a human-usable dashboard page instead of requiring a separate dev server or external web app.",
+        "The dashboard assets are plain project files that are easy to inspect in the repository and are loaded by DeerHunter without introducing a database, Node build pipeline, or frontend framework runtime.",
+        "Example: running DeerHunter locally and opening the dashboard URL shows a page shell with host summary, process area, events area, and actions area populated from the local API.",
+        "Negative case: requesting a missing dashboard asset returns a clear 404 response and does not interfere with existing JSON API routes."
+      ],
+      "startedAt": "2026-03-29T01:56:21.319Z",
+      "completedAt": "2026-03-29T02:01:47.641Z",
+      "updatedAt": "2026-03-29T02:01:47.641Z"
+    },
+    {
+      "id": "US-003",
+      "title": "Show live host and managed process state",
+      "status": "done",
+      "dependsOn": [
+        "US-001",
+        "US-002"
+      ],
+      "description": "Present current DeerHunter host state and all managed child or helper process state in the dashboard so operators can quickly inspect runtime health and control eligibility.",
+      "acceptanceCriteria": [
+        "The dashboard renders all managed processes and helpers with current snapshot fields that matter operationally, including identity, running state, priority, helper designation, last transition details, and any exposed condition or health indicators already tracked by DeerHunter.",
+        "The dashboard clearly distinguishes host state from child-process state and updates from the existing local API without requiring a page rebuild step.",
+        "Example: when one configured process is stopped and another is running, the dashboard visibly shows both states and host supervision status on the same page.",
+        "Negative case: if the process snapshot API returns no managed processes, the dashboard shows an explicit empty state instead of a blank or broken panel."
+      ],
+      "startedAt": "2026-03-29T02:02:21.791Z",
+      "completedAt": "2026-03-29T02:06:34.194Z",
+      "updatedAt": "2026-03-29T02:06:34.194Z"
+    },
+    {
+      "id": "US-004",
+      "title": "Show recent event history in the dashboard",
+      "status": "done",
+      "dependsOn": [
+        "US-002"
+      ],
+      "description": "Expose recent DeerHunter and child-process events in a readable dashboard feed so operators can inspect what happened before issuing actions.",
+      "acceptanceCriteria": [
+        "The dashboard shows a recent events feed using the existing bounded event history and includes timestamp, source, event type, process or host target, and message or details needed for operator diagnosis.",
+        "The events view supports a bounded refresh path using the existing local API event query shape and does not require a database or persistent browser storage.",
+        "Example: after a manual process restart, the event feed shows the corresponding action and resulting process events near the top of the list.",
+        "Negative case: if the event API returns zero items or an error payload, the dashboard shows a clear fallback message and remains usable for other inspection and control actions."
+      ],
+      "startedAt": "2026-03-29T02:06:57.673Z",
+      "completedAt": "2026-03-29T02:11:01.292Z",
+      "updatedAt": "2026-03-29T02:11:01.292Z"
+    },
+    {
+      "id": "US-005",
+      "title": "Wire dashboard operational controls",
+      "status": "done",
+      "dependsOn": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004"
+      ],
+      "description": "Allow the dashboard to trigger all supported DeerHunter operational actions for managed processes, helpers, and the host itself using the local API.",
+      "acceptanceCriteria": [
+        "From the dashboard, an operator can invoke existing process actions including start, stop, restart, and reprioritize for any managed process, including helpers where those actions are valid.",
+        "From the dashboard, an operator can invoke DeerHunter host actions including pause supervision, resume supervision, reload configuration, and request clean shutdown, with visible success or failure feedback.",
+        "Example: changing a process priority from Normal to High through the dashboard updates the process snapshot and records a corresponding event without requiring a manual API call.",
+        "Negative case: if an operator attempts an action on an unknown process, a process that no longer exists after reload, or an invalid priority value, the dashboard surfaces the API error and does not show a false success state."
+      ],
+      "startedAt": "2026-03-29T02:11:20.163Z",
+      "completedAt": "2026-03-29T02:20:12.140Z",
+      "updatedAt": "2026-03-29T02:20:12.140Z"
+    },
+    {
+      "id": "US-006",
+      "title": "Harden runtime behavior and test the dashboard flow",
+      "status": "done",
+      "dependsOn": [
+        "US-001",
+        "US-002",
+        "US-003",
+        "US-004",
+        "US-005"
+      ],
+      "description": "Add focused automated coverage and minimal operational documentation so the dashboard remains reliable and inspectable as part of the DeerHunter host.",
+      "acceptanceCriteria": [
+        "Automated tests cover the new host status and host action API behavior, including paused supervision behavior and failure responses for invalid dashboard-triggered requests.",
+        "Automated tests or equivalent host-level verification cover dashboard route serving and confirm existing JSON API routes continue to work after the dashboard is added.",
+        "Example: the test suite passes with coverage for successful pause or resume and for a rejected invalid host action request.",
+        "Negative case: introducing the dashboard must not break existing local API tests or change established JSON contracts without corresponding test updates."
+      ],
+      "startedAt": "2026-03-29T02:20:35.874Z",
+      "completedAt": "2026-03-29T02:22:40.336Z",
+      "updatedAt": "2026-03-29T02:22:40.336Z"
+    }
+  ]
+}

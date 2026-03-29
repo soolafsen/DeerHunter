@@ -43,6 +43,7 @@ public static class DeerHunterHost
             .ValidateOnStart();
 
         builder.Services.AddSingleton<IValidateOptions<DeerHunterOptions>, DeerHunterOptionsValidator>();
+        builder.Services.AddSingleton(new HostRuntimeState(resolvedConfigPath));
         builder.Services.AddSingleton<EventStore>();
         builder.Services.AddSingleton<EventJournal>();
         builder.Services.AddSingleton<SupervisorCoordinator>();

@@ -313,6 +313,17 @@ public sealed class ManagedProcessAgent
                 return;
             }
 
+            if (_coordinator.ShouldSuppressAutomaticRestart())
+            {
+                _expectedExit = false;
+                _coordinator.RecordEvent("process.restart.skipped", Options.Name, "supervisor", $"Automatic restart skipped for {Options.Name} while supervision is paused.",
+                    new Dictionary<string, string?>
+                    {
+                        ["reason"] = "supervision paused"
+                    });
+                return;
+            }
+
             if (Options.Restart.MaxAttempts > 0 && _restartAttempts >= Options.Restart.MaxAttempts)
             {
                 SetLifecycleNoLock(ManagedProcessLifecycle.Failed, "restart attempts exhausted");
