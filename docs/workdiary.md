@@ -180,3 +180,4 @@
 - Simplified the blind itself to a basic box over a flat platform while keeping the four legs and horizontal stabilizer.
 - Simplified the stand further after confirming the live front page was using the new asset but the silhouette still felt too busy.
 - Finalized the stand as four outer legs, one horizontal stabilizer, one platform, and one simple hut box.
+- Switched the README hero to a new versioned asset path using an absolute raw GitHub URL to force the front page onto the current image instead of a stale rendered asset.
