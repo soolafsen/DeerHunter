@@ -178,3 +178,5 @@
 - Added a fresh hero asset filename and pointed the README at it so GitHub would stop serving the earlier cached-looking version.
 - Removed the zigzag brace after it still read as visual clutter.
 - Simplified the blind itself to a basic box over a flat platform while keeping the four legs and horizontal stabilizer.
+- Simplified the stand further after confirming the live front page was using the new asset but the silhouette still felt too busy.
+- Finalized the stand as four outer legs, one horizontal stabilizer, one platform, and one simple hut box.

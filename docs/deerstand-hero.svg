@@ -30,15 +30,15 @@
   </g>
 
   <g stroke="#5A3B28" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
-    <line x1="730" y1="228" x2="694" y2="424"/>
-    <line x1="844" y1="228" x2="880" y2="424"/>
-    <line x1="774" y1="228" x2="740" y2="424"/>
-    <line x1="810" y1="228" x2="822" y2="424"/>
-    <line x1="724" y1="304" x2="852" y2="304"/>
+    <line x1="720" y1="228" x2="690" y2="424"/>
+    <line x1="756" y1="228" x2="736" y2="424"/>
+    <line x1="828" y1="228" x2="846" y2="424"/>
+    <line x1="864" y1="228" x2="886" y2="424"/>
+    <line x1="716" y1="304" x2="860" y2="304"/>
   </g>
 
   <g fill="#8A6240" stroke="#4B3222" stroke-width="6" stroke-linejoin="round">
-    <rect x="724" y="146" width="96" height="54" rx="7"/>
-    <rect x="704" y="202" width="176" height="26" rx="7"/>
+    <rect x="726" y="146" width="96" height="52" rx="7"/>
+    <rect x="706" y="200" width="156" height="28" rx="7"/>
   </g>
 </svg>
