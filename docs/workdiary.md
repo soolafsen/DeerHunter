@@ -176,3 +176,5 @@
 - Added a few more trees to keep the scene balanced without introducing another fussy silhouette.
 - Simplified the stand once more toward a clearer box-on-stilts shape.
 - Added a fresh hero asset filename and pointed the README at it so GitHub would stop serving the earlier cached-looking version.
+- Removed the zigzag brace after it still read as visual clutter.
+- Simplified the blind itself to a basic box over a flat platform while keeping the four legs and horizontal stabilizer.

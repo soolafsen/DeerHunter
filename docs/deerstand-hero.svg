@@ -35,14 +35,10 @@
     <line x1="774" y1="228" x2="740" y2="424"/>
     <line x1="810" y1="228" x2="822" y2="424"/>
     <line x1="724" y1="304" x2="852" y2="304"/>
-    <line x1="736" y1="304" x2="792" y2="276"/>
-    <line x1="792" y1="276" x2="824" y2="356"/>
   </g>
 
   <g fill="#8A6240" stroke="#4B3222" stroke-width="6" stroke-linejoin="round">
-    <rect x="704" y="186" width="172" height="42" rx="7"/>
-    <rect x="722" y="142" width="98" height="50" rx="7"/>
-    <rect x="748" y="198" width="84" height="26" rx="5"/>
-    <rect x="786" y="198" width="12" height="50" rx="4"/>
+    <rect x="724" y="146" width="96" height="54" rx="7"/>
+    <rect x="704" y="202" width="176" height="26" rx="7"/>
   </g>
 </svg>
