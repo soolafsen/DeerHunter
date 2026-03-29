@@ -155,3 +155,14 @@
 
 - Adjusted the README hero illustration after review.
 - Removed the overlaid text card from the SVG and redrew the deerstand with a cleaner silhouette so the art reads better on the GitHub front page.
+
+## 2026-03-29 04:35 Europe/Oslo
+
+- Added `docs/improvement.md`.
+- Wrote it as a next-agent pickup document rather than a loose brainstorm.
+- Included:
+  - prioritized improvement themes
+  - suggested execution order
+  - fast wins
+  - bigger bets
+  - recommended next PRD candidates
